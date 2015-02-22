@@ -31,7 +31,8 @@ def fhelp():
 	'   release <domains>\t - Stop updating domains with current ip.\n' \
 	'   <domain> <ip>\t - Point domain at IP, current IP is used if left blank.\n' \
 	'   timeout <seconds>\t - Set the interval between IP checks for maintain command.\n' \
-	'   refresh\t\t - Update local DB.'
+	'   refresh\t\t - Update local DB.\n' \
+	'   verbose\t\t - Toggle verbose output'
 
 def completer(text, state):
 	for cmd in commandlist:
@@ -60,12 +61,18 @@ def maintain():
 	while True:
 		sleep(timeout)
 		newip = False
+		if verbose:
+			cleanprint(' %s Checking external IP address.\n >' % (nicetime()))
 		while not newip:
 			try:
 				newip = currentip()
 				iptime = nicetime()
+				if verbose:
+					cleanprint(' %s External IP: %s\n >' % (iptime, newip))
 			except:
-				sleep(2)
+				if verbose:
+					cleanprint(' %s ERROR: Failed to connect, sleeping 10 seconds.\n >' % (nicetime()))
+				sleep(10)
 
 		if newip != current:
 			for site in upsites:
@@ -157,7 +164,7 @@ def showdomains(silent):
 def randheader():
 	return { 'User-Agent':choice(useragents) }
 
-commandlist = ['add ', 'maintain ', 'release ', 'timeout ', 'ls', 'refresh', 'help']
+commandlist = ['add ', 'maintain ', 'release ', 'timeout ', 'ls', 'refresh', 'help', 'verbose']
 useragents = [	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/36.0.1985.125 Safari/537.36",
 	"Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2166.2 Safari/537.36",
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.0 Safari/537.36",
@@ -203,7 +210,7 @@ useragents = [	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML like G
 	"Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.1; Trident/6.0)",
 	"Mozilla/5.0 (compatible; MSIE 10.6; Windows NT 6.1; Trident/5.0)",
 	"Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko", ]
-stats, timeout, upsites = {}, 120, []
+stats, timeout, upsites, verbose = {}, 120, [], False
 
 try:
 	import readline
@@ -218,6 +225,7 @@ try:
 except:
 	pass
 
+current = currentip()
 if path.isfile('data/authkeys'):
 	with open('data/authkeys', 'rb') as a:
 		authkeys = a.read().strip().split('\n')
@@ -228,7 +236,6 @@ if path.isfile('data/authkeys'):
 			t.daemon = True
 			t.start()
 			t.join()
-		current = currentip()
 	except:
 		print ' %s Connection failed.' % (nicetime())
 		exit()
@@ -289,6 +296,14 @@ while True:
 			else:
 				print ' [X] Passwords do not match, try again..\n'
 
+	elif command.startswith('verbose'):
+		if verbose:
+			verbose = False
+			print ' [X] Verbose disabled.'
+		else:
+			verbose = True
+			print ' [*] Verbose enabled.'
+
 	elif command.startswith('ls'):
 		showdomains(False)
 
@@ -337,7 +352,8 @@ while True:
 			fhelp()
 
 	elif command.startswith('refresh'):
-		print ' %s Downloading records for %s users..' % (nicetime(), len(authkeys))
+		if verbose:
+			print ' %s Downloading records for %s users..' % (nicetime(), len(authkeys))
 		for key in authkeys:
 			t = Thread(target=update_stats, args=(key,))
 			t.daemon = True
